@@ -1,8 +1,8 @@
-const { createSign } = require('crypto');
+const { createSign, createPrivateKey } = require('crypto');
 
 const CLIENT_EMAIL  = process.env.GOOGLE_CLIENT_EMAIL;
 const PRIVATE_KEY   = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-const CALENDAR_ID   = process.env.GOOGLE_CALENDAR_ID; // your Google account email
+const CALENDAR_ID   = process.env.GOOGLE_CALENDAR_ID;
 
 const TIME_SLOTS = [
   '9:00 AM','10:00 AM','11:00 AM',
@@ -24,13 +24,19 @@ async function getAccessToken() {
   const payload = Buffer.from(JSON.stringify(claim)).toString('base64url');
   const input   = `${header}.${payload}`;
 
+  // Use createPrivateKey for compatibility with Node 18+
+  const privateKey = createPrivateKey({
+    key: PRIVATE_KEY,
+    format: 'pem',
+  });
+
   const sign = createSign('RSA-SHA256');
   sign.update(input);
-  const sig = sign.sign(PRIVATE_KEY, 'base64url');
+  const sig = sign.sign(privateKey, 'base64url');
 
   const jwt = `${input}.${sig}`;
 
-  const res  = await fetch('https://oauth2.googleapis.com/token', {
+  const res = await fetch('https://oauth2.googleapis.com/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body: new URLSearchParams({
@@ -40,7 +46,7 @@ async function getAccessToken() {
   });
 
   const data = await res.json();
-  if (!data.access_token) throw new Error('Failed to get access token: ' + JSON.stringify(data));
+  if (!data.access_token) throw new Error('Token error: ' + JSON.stringify(data));
   return data.access_token;
 }
 
@@ -56,13 +62,12 @@ exports.handler = async (event) => {
 
   const { date } = event.queryStringParameters || {};
   if (!date) {
-    return { statusCode: 400, headers, body: JSON.stringify({ error: 'date param required (YYYY-MM-DD)' }) };
+    return { statusCode: 400, headers, body: JSON.stringify({ error: 'date param required' }) };
   }
 
   try {
     const accessToken = await getAccessToken();
 
-    // Use Eastern Time boundaries for the day
     const timeMin = new Date(`${date}T00:00:00`);
     const timeMax = new Date(`${date}T23:59:59`);
 
@@ -83,7 +88,6 @@ exports.handler = async (event) => {
     const data = await res.json();
     const busy = data.calendars?.[CALENDAR_ID]?.busy || [];
 
-    // Map each TIME_SLOT to blocked if it overlaps any busy period
     const blocked = TIME_SLOTS.filter(slot => {
       let [timePart, period] = slot.split(' ');
       let [h, m] = timePart.split(':').map(Number);
@@ -107,7 +111,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ blocked }),
     };
   } catch (err) {
-    console.error(err);
+    console.error('Calendar function error:', err.message);
     return {
       statusCode: 500,
       headers,
