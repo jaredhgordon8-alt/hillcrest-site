@@ -1,54 +1,14 @@
-const { createSign, createPrivateKey } = require('crypto');
+const { JWT } = require('google-auth-library');
 
-const CLIENT_EMAIL  = process.env.GOOGLE_CLIENT_EMAIL;
-const PRIVATE_KEY   = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
-const CALENDAR_ID   = process.env.GOOGLE_CALENDAR_ID;
+const CLIENT_EMAIL = process.env.GOOGLE_CLIENT_EMAIL;
+const PRIVATE_KEY  = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+const CALENDAR_ID  = process.env.GOOGLE_CALENDAR_ID;
 
 const TIME_SLOTS = [
   '9:00 AM','10:00 AM','11:00 AM',
   '12:00 PM','1:00 PM','2:00 PM',
   '3:00 PM','4:00 PM','5:00 PM'
 ];
-
-async function getAccessToken() {
-  const now = Math.floor(Date.now() / 1000);
-  const claim = {
-    iss:   CLIENT_EMAIL,
-    scope: 'https://www.googleapis.com/auth/calendar.readonly',
-    aud:   'https://oauth2.googleapis.com/token',
-    exp:   now + 3600,
-    iat:   now,
-  };
-
-  const header  = Buffer.from(JSON.stringify({ alg: 'RS256', typ: 'JWT' })).toString('base64url');
-  const payload = Buffer.from(JSON.stringify(claim)).toString('base64url');
-  const input   = `${header}.${payload}`;
-
-  // Use createPrivateKey for compatibility with Node 18+
-  const privateKey = createPrivateKey({
-    key: PRIVATE_KEY,
-    format: 'pem',
-  });
-
-  const sign = createSign('RSA-SHA256');
-  sign.update(input);
-  const sig = sign.sign(privateKey, 'base64url');
-
-  const jwt = `${input}.${sig}`;
-
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body: new URLSearchParams({
-      grant_type: 'urn:ietf:params:oauth:grant-type:jwt-bearer',
-      assertion: jwt,
-    }),
-  });
-
-  const data = await res.json();
-  if (!data.access_token) throw new Error('Token error: ' + JSON.stringify(data));
-  return data.access_token;
-}
 
 exports.handler = async (event) => {
   const headers = {
@@ -66,7 +26,15 @@ exports.handler = async (event) => {
   }
 
   try {
-    const accessToken = await getAccessToken();
+    // Use google-auth-library to handle auth — no manual OpenSSL needed
+    const auth = new JWT({
+      email: CLIENT_EMAIL,
+      key: PRIVATE_KEY,
+      scopes: ['https://www.googleapis.com/auth/calendar.readonly'],
+    });
+
+    const token = await auth.getAccessToken();
+    const accessToken = token.token;
 
     const timeMin = new Date(`${date}T00:00:00`);
     const timeMax = new Date(`${date}T23:59:59`);
@@ -111,7 +79,7 @@ exports.handler = async (event) => {
       body: JSON.stringify({ blocked }),
     };
   } catch (err) {
-    console.error('Calendar function error:', err.message);
+    console.error('Calendar error:', err.message);
     return {
       statusCode: 500,
       headers,
