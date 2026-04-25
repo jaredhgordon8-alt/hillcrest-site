@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>My Portal — Hillcrest Educational Consultants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0b1f3a; --navy-mid: #122847; --navy-light: #1a3560;
+      --gold: #c9a84c; --gold-light: #e2c47a; --text-muted: #8fa3bc;
+      --white: #ffffff; --danger: #d96060;
+    }
+    body {
+      font-family: 'EB Garamond', serif;
+      background: var(--navy); color: var(--white);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 10%, rgba(201,168,76,.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 85% 90%, rgba(26,53,96,.5) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(255,255,255,.012) 80px),
+        repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(255,255,255,.012) 80px);
+      pointer-events: none; z-index: 0;
+    }
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(11,31,58,.85); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(201,168,76,.12);
+    }
+    .nav-left { display: flex; align-items: center; gap: 16px; }
+    .nav-wordmark {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600; font-size: 1rem; letter-spacing: .1em;
+      color: var(--white); text-decoration: none;
+    }
+    .nav-divider { width: 1px; height: 18px; background: rgba(255,255,255,.15); }
+    .nav-section {
+      font-size: .75rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--gold); opacity: .8;
+    }
+    .nav-right { display: flex; align-items: center; gap: 20px; }
+    .nav-user { font-size: .88rem; color: var(--text-muted); }
+    .nav-signout {
+      font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--text-muted); background: none; border: none;
+      font-family: 'EB Garamond', serif; cursor: pointer; transition: color .25s;
+    }
+    .nav-signout:hover { color: var(--gold); }
+    .portal-body {
+      position: relative; z-index: 1; flex: 1;
+      max-width: 1100px; width: 100%; margin: 0 auto;
+      padding: 48px 40px 80px;
+    }
+    .portal-greeting {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300; font-size: 2.2rem; margin-bottom: 6px;
+    }
+    .portal-greeting em { font-style: italic; color: var(--gold-light); }
+    .portal-date { font-size: .9rem; color: var(--text-muted); margin-bottom: 44px; }
+    .tabs {
+      display: flex; gap: 0; margin-bottom: 40px;
+      border-bottom: 1px solid rgba(255,255,255,.08);
+    }
+    .tab-btn {
+      background: none; border: none; border-bottom: 2px solid transparent;
+      padding: 12px 28px; font-family: 'EB Garamond', serif;
+      font-size: .85rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--text-muted); cursor: pointer; transition: color .25s, border-color .25s;
+      margin-bottom: -1px;
+    }
+    .tab-btn.active { color: var(--gold); border-bottom-color: var(--gold); }
+    .tab-btn:hover:not(.active) { color: rgba(255,255,255,.6); }
+    .tab-panel { display: none; animation: fadeUp .4s ease forwards; }
+    .tab-panel.active { display: block; }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(12px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .appt-empty {
+      text-align: center; padding: 60px 20px;
+      border: 1px solid rgba(255,255,255,.06);
+      color: var(--text-muted); font-size: 1rem; line-height: 1.7;
+    }
+    .appt-empty strong {
+      display: block; font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem; font-weight: 300; color: var(--white); margin-bottom: 8px;
+    }
+    .appt-list { display: flex; flex-direction: column; gap: 16px; }
+    .appt-card {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px 28px; border: 1px solid rgba(201,168,76,.15);
+      background: rgba(255,255,255,.025); transition: border-color .25s, background .25s;
+    }
+    .appt-card:hover { border-color: rgba(201,168,76,.3); background: rgba(201,168,76,.04); }
+    .appt-info { display: flex; flex-direction: column; gap: 5px; }
+    .appt-advisor {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.2rem; font-weight: 600; color: var(--white);
+    }
+    .appt-datetime { font-size: .88rem; color: var(--text-muted); }
+    .appt-badge {
+      font-size: .7rem; letter-spacing: .1em; text-transform: uppercase;
+      padding: 4px 12px; border: 1px solid rgba(201,168,76,.35); color: var(--gold); white-space: nowrap;
+    }
+    .appt-badge.past { border-color: rgba(255,255,255,.12); color: var(--text-muted); }
+    .appt-cancel {
+      background: none; border: none; color: rgba(217,96,96,.5);
+      font-family: 'EB Garamond', serif; font-size: .8rem;
+      letter-spacing: .08em; cursor: pointer; transition: color .2s;
+      margin-left: 20px; text-transform: uppercase;
+    }
+    .appt-cancel:hover { color: var(--danger); }
+    .booking-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; }
+    @media (max-width: 700px) { .booking-grid { grid-template-columns: 1fr; } }
+    .panel-label {
+      font-size: .7rem; font-weight: 500; letter-spacing: .22em;
+      text-transform: uppercase; color: var(--gold); margin-bottom: 16px;
+    }
+    .advisor-cards { display: flex; flex-direction: column; gap: 12px; margin-bottom: 32px; }
+    .advisor-card {
+      display: flex; align-items: center; gap: 16px;
+      padding: 16px 20px; border: 1px solid rgba(255,255,255,.08);
+      background: rgba(255,255,255,.02); cursor: pointer; transition: border-color .25s, background .25s;
+    }
+    .advisor-card.selected { border-color: var(--gold); background: rgba(201,168,76,.07); }
+    .advisor-avatar {
+      width: 44px; height: 44px; border-radius: 50%;
+      background: var(--navy-light); border: 1px solid rgba(201,168,76,.3);
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600;
+      color: var(--gold); flex-shrink: 0;
+    }
+    .advisor-name { font-family: 'Cormorant Garamond', serif; font-size: 1.1rem; font-weight: 600; }
+    .advisor-title { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+    .calendar-header {
+      display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;
+    }
+    .cal-nav {
+      background: none; border: none; color: var(--text-muted);
+      font-size: 1.1rem; cursor: pointer; padding: 4px 10px; transition: color .2s;
+    }
+    .cal-nav:hover { color: var(--gold); }
+    .cal-month-label {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.1rem; font-weight: 600; letter-spacing: .06em;
+    }
+    .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+    .cal-day-name {
+      font-size: .68rem; letter-spacing: .1em; text-transform: uppercase;
+      color: var(--text-muted); text-align: center; padding: 6px 0;
+    }
+    .cal-day {
+      aspect-ratio: 1; display: flex; align-items: center; justify-content: center;
+      font-size: .88rem; border-radius: 2px; cursor: pointer;
+      transition: background .2s, color .2s; border: 1px solid transparent;
+    }
+    .cal-day.empty { cursor: default; }
+    .cal-day.past { color: rgba(255,255,255,.2); cursor: not-allowed; }
+    .cal-day.available:hover { background: rgba(201,168,76,.12); border-color: rgba(201,168,76,.3); }
+    .cal-day.selected { background: var(--gold); color: var(--navy); font-weight: 700; }
+    .cal-day.has-appt { border-color: rgba(201,168,76,.4); color: var(--gold-light); }
+    .cal-day.today { border-color: rgba(255,255,255,.2); }
+    .time-section { margin-top: 28px; }
+    .time-slots { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-top: 12px; }
+    .time-slot {
+      padding: 10px 6px; text-align: center;
+      border: 1px solid rgba(255,255,255,.1);
+      font-size: .85rem; color: var(--text-muted);
+      cursor: pointer; transition: border-color .2s, background .2s, color .2s;
+    }
+    .time-slot:hover { border-color: var(--gold); color: var(--white); }
+    .time-slot.selected { border-color: var(--gold); background: rgba(201,168,76,.12); color: var(--gold); }
+    .time-slot.booked { border-color: rgba(255,255,255,.05); color: rgba(255,255,255,.15); cursor: not-allowed; }
+    .confirm-panel {
+      margin-top: 32px; padding: 24px;
+      border: 1px solid rgba(201,168,76,.2);
+      background: rgba(201,168,76,.04); display: none;
+    }
+    .confirm-panel.visible { display: block; animation: fadeUp .3s ease forwards; }
+    .confirm-row { display: flex; justify-content: space-between; margin-bottom: 10px; font-size: .9rem; }
+    .confirm-row span:first-child { color: var(--text-muted); }
+    .btn-book {
+      width: 100%; margin-top: 20px; padding: 14px;
+      background: transparent; border: 1px solid var(--gold); color: var(--gold);
+      font-family: 'EB Garamond', serif; font-size: 1rem;
+      font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+      cursor: pointer; position: relative; overflow: hidden; transition: color .3s;
+    }
+    .btn-book::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gold); transform: translateX(-101%); transition: transform .3s ease;
+    }
+    .btn-book:hover::before { transform: translateX(0); }
+    .btn-book:hover { color: var(--navy); }
+    .btn-book span { position: relative; z-index: 1; }
+    .btn-book:disabled { opacity: .5; cursor: not-allowed; }
+    .loading-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-muted); font-size: 1rem;
+    }
+    .toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--navy-light); border: 1px solid var(--gold);
+      padding: 14px 32px; font-size: .9rem; letter-spacing: .04em;
+      color: var(--gold-light); z-index: 999;
+      transition: transform .4s ease, opacity .4s; opacity: 0; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    footer {
+      position: relative; z-index: 1;
+      text-align: center; padding: 28px;
+      font-size: .75rem; color: rgba(255,255,255,.2);
+      border-top: 1px solid rgba(255,255,255,.05);
+    }
+    footer span { color: var(--gold); opacity: .5; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <a href="/" class="nav-wordmark">Hillcrest Educational Consultants</a>
+    <div class="nav-divider"></div>
+    <span class="nav-section">Member Portal</span>
+  </div>
+  <div class="nav-right">
+    <span class="nav-user" id="navUser"></span>
+    <button class="nav-signout" onclick="signOut()">Sign Out</button>
+  </div>
+</nav>
+
+<div class="portal-body">
+  <h1 class="portal-greeting">Welcome back, <em id="greetName"></em></h1>
+  <p class="portal-date" id="portalDate"></p>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('appointments', this)">My Appointments</button>
+    <button class="tab-btn" onclick="switchTab('book', this)">Book a Session</button>
+  </div>
+
+  <div class="tab-panel active" id="tab-appointments">
+    <div id="apptList"><div class="loading-state">Loading appointments…</div></div>
+  </div>
+
+  <div class="tab-panel" id="tab-book">
+    <div class="booking-grid">
+      <div>
+        <p class="panel-label">Choose Your Advisor</p>
+        <div class="advisor-cards">
+          <div class="advisor-card" id="adv-Jared" onclick="selectAdvisor('Jared')">
+            <div class="advisor-avatar">J</div>
+            <div>
+              <div class="advisor-name">Jared</div>
+              <div class="advisor-title">Lead College Counselor</div>
+            </div>
+          </div>
+          <div class="advisor-card" id="adv-Oliver" onclick="selectAdvisor('Oliver')">
+            <div class="advisor-avatar">O</div>
+            <div>
+              <div class="advisor-name">Oliver</div>
+              <div class="advisor-title">College Counselor</div>
+            </div>
+          </div>
+        </div>
+        <p class="panel-label">Select a Date</p>
+        <div class="calendar-header">
+          <button class="cal-nav" onclick="changeMonth(-1)">&#8592;</button>
+          <span class="cal-month-label" id="calMonthLabel"></span>
+          <button class="cal-nav" onclick="changeMonth(1)">&#8594;</button>
+        </div>
+        <div class="cal-grid" id="calGrid"></div>
+      </div>
+
+      <div>
+        <div class="time-section" id="timeSection" style="display:none">
+          <p class="panel-label">Available Times — 1 Hour Session</p>
+          <div class="time-slots" id="timeSlots"></div>
+        </div>
+        <div class="confirm-panel" id="confirmPanel">
+          <p class="panel-label" style="margin-bottom:18px">Appointment Summary</p>
+          <div class="confirm-row"><span>Advisor</span><span id="confAdvisor">—</span></div>
+          <div class="confirm-row"><span>Date</span><span id="confDate">—</span></div>
+          <div class="confirm-row"><span>Time</span><span id="confTime">—</span></div>
+          <div class="confirm-row"><span>Duration</span><span>1 Hour Session</span></div>
+          <button class="btn-book" id="bookBtn" onclick="confirmBooking()">
+            <span id="bookLabel">Confirm Appointment</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer>
+  <p>© 2026 Hillcrest Educational Consultants &nbsp;<span>·</span>&nbsp; New Canaan, CT</p>
+</footer>
+
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ozbmtqqdntltfnimyaev.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Ym10cXFkbnRsdGZuaW15YWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODUxMzgsImV4cCI6MjA5MjU2MTEzOH0.VGXjewx0PfUwSN0dUWkQZidVeFoeZ5M70C93ZUbcVZ8'
+  );
+
+  let currentUser = null;
+  let allAppointments = [];
+
+  // ── INIT ──
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '/login'; return; }
+
+    currentUser = session.user;
+    const name = currentUser.user_metadata?.name || currentUser.email.split('@')[0];
+    const firstName = name.split(' ')[0];
+
+    document.getElementById('greetName').textContent = firstName;
+    document.getElementById('navUser').textContent = name;
+    document.getElementById('portalDate').textContent = new Date().toLocaleDateString('en-US', {
+      weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+    });
+
+    await loadAppointments();
+    buildCalendar();
+  })();
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = '/login';
+  }
+
+  // ── TABS ──
+  function switchTab(name, btn) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + name).classList.add('active');
+    if (name === 'appointments') renderAppointments();
+  }
+
+  // ── APPOINTMENTS ──
+  async function loadAppointments() {
+    const { data, error } = await sb
+      .from('appointments')
+      .select('*')
+      .eq('user_id', currentUser.id)
+      .order('datetime', { ascending: true });
+
+    if (!error) allAppointments = data || [];
+    renderAppointments();
+    buildCalendar();
+  }
+
+  function renderAppointments() {
+    const container = document.getElementById('apptList');
+    if (!allAppointments.length) {
+      container.innerHTML = `<div class="appt-empty">
+        <strong>No appointments yet</strong>
+        Head to the "Book a Session" tab to schedule time with your counselor.
+      </div>`;
+      return;
+    }
+
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = allAppointments.filter(a => new Date(a.datetime) >= today);
+    const past     = allAppointments.filter(a => new Date(a.datetime) < today);
+
+    let html = '';
+    if (upcoming.length) {
+      html += `<p class="panel-label" style="margin-bottom:14px">Upcoming</p><div class="appt-list">`;
+      upcoming.forEach(a => {
+        const d = new Date(a.datetime);
+        const label = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+        const time  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+        html += `<div class="appt-card">
+          <div class="appt-info">
+            <div class="appt-advisor">Session with ${a.advisor}</div>
+            <div class="appt-datetime">${label} &nbsp;·&nbsp; ${time} &nbsp;·&nbsp; 1 Hour</div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="appt-badge">Upcoming</span>
+            <button class="appt-cancel" onclick="cancelAppt('${a.id}')">Cancel</button>
+          </div>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    if (past.length) {
+      html += `<p class="panel-label" style="margin-top:32px;margin-bottom:14px">Past Sessions</p><div class="appt-list">`;
+      past.forEach(a => {
+        const d = new Date(a.datetime);
+        const label = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+        const time  = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+        html += `<div class="appt-card">
+          <div class="appt-info">
+            <div class="appt-advisor">Session with ${a.advisor}</div>
+            <div class="appt-datetime">${label} &nbsp;·&nbsp; ${time} &nbsp;·&nbsp; 1 Hour</div>
+          </div>
+          <span class="appt-badge past">Completed</span>
+        </div>`;
+      });
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  }
+
+  async function cancelAppt(id) {
+    const { error } = await sb.from('appointments').delete().eq('id', id);
+    if (!error) {
+      await loadAppointments();
+      showToast('Appointment cancelled.');
+    }
+  }
+
+  // ── BOOKING STATE ──
+  let selectedAdvisor = null, selectedDate = null, selectedTime = null;
+  let calYear = new Date().getFullYear(), calMonth = new Date().getMonth();
+  let gcalBlocked = []; // slots blocked by Google Calendar
+
+  const TIME_SLOTS = ['9:00 AM','10:00 AM','11:00 AM','12:00 PM','1:00 PM','2:00 PM','3:00 PM','4:00 PM','5:00 PM'];
+  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+
+  function selectAdvisor(name) {
+    selectedAdvisor = name; selectedDate = null; selectedTime = null;
+    document.querySelectorAll('.advisor-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('adv-' + name).classList.add('selected');
+    document.getElementById('timeSection').style.display = 'none';
+    document.getElementById('confirmPanel').classList.remove('visible');
+    buildCalendar();
+  }
+
+  function changeMonth(dir) {
+    calMonth += dir;
+    if (calMonth > 11) { calMonth = 0; calYear++; }
+    if (calMonth < 0)  { calMonth = 11; calYear--; }
+    selectedDate = null; selectedTime = null;
+    document.getElementById('timeSection').style.display = 'none';
+    document.getElementById('confirmPanel').classList.remove('visible');
+    buildCalendar();
+  }
+
+  function toDateStr(date) {
+    return date.getFullYear() + '-' +
+      String(date.getMonth()+1).padStart(2,'0') + '-' +
+      String(date.getDate()).padStart(2,'0');
+  }
+
+  function getBookedMap() {
+    const map = {};
+    allAppointments.forEach(a => {
+      const d = new Date(a.datetime);
+      const key = toDateStr(d);
+      // Normalize to uppercase to match TIME_SLOTS array on all browsers
+      const t = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true }).toUpperCase().replace(/\s+/g,' ').trim();
+      if (!map[key]) map[key] = [];
+      map[key].push(t + '|' + a.advisor);
+    });
+    return map;
+  }
+
+  function buildCalendar() {
+    document.getElementById('calMonthLabel').textContent = MONTHS[calMonth] + ' ' + calYear;
+    const grid = document.getElementById('calGrid');
+    grid.innerHTML = '';
+    DAYS.forEach(d => {
+      const el = document.createElement('div');
+      el.className = 'cal-day-name'; el.textContent = d; grid.appendChild(el);
+    });
+
+    const firstDay = new Date(calYear, calMonth, 1).getDay();
+    const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+    const todayDate = new Date(); todayDate.setHours(0,0,0,0);
+    const bookedMap = getBookedMap();
+
+    for (let i = 0; i < firstDay; i++) {
+      const el = document.createElement('div'); el.className = 'cal-day empty'; grid.appendChild(el);
+    }
+    for (let d = 1; d <= daysInMonth; d++) {
+      const el = document.createElement('div');
+      const date = new Date(calYear, calMonth, d);
+      const isWeekend = date.getDay() === 0 || date.getDay() === 6;
+      const isPast = date < todayDate;
+      const isToday = date.getTime() === todayDate.getTime();
+      const dateStr = toDateStr(date);
+      const hasAppt = bookedMap[dateStr] && bookedMap[dateStr].length > 0;
+
+      el.className = 'cal-day'; el.textContent = d;
+      if (isPast || isWeekend) {
+        el.classList.add('past');
+      } else {
+        el.classList.add('available');
+        if (isToday) el.classList.add('today');
+        if (hasAppt) el.classList.add('has-appt');
+        if (selectedDate === dateStr) el.classList.add('selected');
+        el.onclick = () => selectDate(dateStr, el);
+      }
+      grid.appendChild(el);
+    }
+  }
+
+  async function selectDate(dateStr, el) {
+    if (!selectedAdvisor) { showToast('Please choose an advisor first.'); return; }
+    selectedDate = dateStr; selectedTime = null;
+    document.querySelectorAll('.cal-day').forEach(c => c.classList.remove('selected'));
+    el.classList.add('selected');
+
+    // Show loading state in time slots while fetching
+    document.getElementById('timeSection').style.display = 'block';
+    document.getElementById('timeSlots').innerHTML =
+      '<div style="grid-column:1/-1;color:var(--text-muted);font-size:.88rem;padding:8px 0;">Checking availability…</div>';
+    document.getElementById('confirmPanel').classList.remove('visible');
+
+    // Fetch Google Calendar blocked times for this date
+    gcalBlocked = [];
+    try {
+      const res = await fetch(`/.netlify/functions/calendar?date=${dateStr}`);
+      if (res.ok) {
+        const data = await res.json();
+        gcalBlocked = (data.blocked || []).map(s => s.toUpperCase());
+      }
+    } catch (e) {
+      // If function unreachable, just proceed with no gcal blocking
+    }
+
+    renderTimeSlots();
+  }
+
+  function renderTimeSlots() {
+    document.getElementById('timeSection').style.display = 'block';
+    const slots = document.getElementById('timeSlots');
+    const bookedMap = getBookedMap();
+    const booked = (bookedMap[selectedDate] || [])
+      .filter(s => s.endsWith('|' + selectedAdvisor))
+      .map(s => s.split('|')[0].toUpperCase());
+
+    slots.innerHTML = '';
+    TIME_SLOTS.forEach(t => {
+      const el = document.createElement('div');
+      el.className = 'time-slot';
+      el.textContent = t;
+      const tUpper = t.toUpperCase();
+
+      if (booked.includes(tUpper)) {
+        el.classList.add('booked');
+        el.title = 'Already booked';
+      } else if (gcalBlocked.includes(tUpper)) {
+        el.classList.add('booked');
+        el.title = 'Unavailable';
+      } else {
+        if (selectedTime === t) el.classList.add('selected');
+        el.onclick = () => selectTime(t, el);
+      }
+      slots.appendChild(el);
+    });
+  }
+
+  function selectTime(t, el) {
+    selectedTime = t;
+    document.querySelectorAll('.time-slot').forEach(s => s.classList.remove('selected'));
+    el.classList.add('selected');
+    updateConfirm();
+  }
+
+  function updateConfirm() {
+    if (!selectedAdvisor || !selectedDate || !selectedTime) return;
+    const d = new Date(selectedDate + 'T00:00:00');
+    document.getElementById('confAdvisor').textContent = selectedAdvisor;
+    document.getElementById('confDate').textContent = d.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    document.getElementById('confTime').textContent = selectedTime;
+    document.getElementById('confirmPanel').classList.add('visible');
+  }
+
+  async function confirmBooking() {
+    const btn = document.getElementById('bookBtn');
+    const label = document.getElementById('bookLabel');
+    btn.disabled = true; label.textContent = 'Booking…';
+
+    let [timePart, period] = selectedTime.split(' ');
+    let [h, m] = timePart.split(':').map(Number);
+    if (period === 'PM' && h !== 12) h += 12;
+    if (period === 'AM' && h === 12) h = 0;
+
+    const dt = new Date(selectedDate + 'T00:00:00');
+    dt.setHours(h, m, 0, 0);
+
+    const userName  = currentUser.user_metadata?.name || currentUser.email.split('@')[0];
+    const userEmail = currentUser.email;
+
+    const { data, error } = await sb.from('appointments').insert({
+      user_id:    currentUser.id,
+      user_email: userEmail,
+      user_name:  userName,
+      advisor:    selectedAdvisor,
+      datetime:   dt.toISOString(),
+    }).select();
+
+    if (error) {
+      // If new columns don't exist yet, retry without them
+      const { error: error2 } = await sb.from('appointments').insert({
+        user_id:  currentUser.id,
+        advisor:  selectedAdvisor,
+        datetime: dt.toISOString(),
+      });
+      if (error2) {
+        showToast('Could not book appointment. Please try again.');
+        btn.disabled = false; label.textContent = 'Confirm Appointment';
+        return;
+      }
+    }
+
+    // Email notification to Jared
+    const dateLabel = dt.toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        access_key: '329d7339-1d76-461d-86dc-013d508cf126',
+        subject: `New Appointment — ${userName} with ${selectedAdvisor}`,
+        from_name: 'Hillcrest Portal',
+        message:
+          `A new appointment has been booked.\n\n` +
+          `Client: ${userName}\n` +
+          `Email: ${userEmail}\n` +
+          `Advisor: ${selectedAdvisor}\n` +
+          `Date: ${dateLabel}\n` +
+          `Time: ${selectedTime}\n` +
+          `Duration: 1 Hour Session`
+      })
+    });
+
+    // Reset
+    selectedAdvisor = null; selectedDate = null; selectedTime = null;
+    document.querySelectorAll('.advisor-card').forEach(c => c.classList.remove('selected'));
+    document.getElementById('timeSection').style.display = 'none';
+    document.getElementById('confirmPanel').classList.remove('visible');
+    label.textContent = 'Confirm Appointment'; btn.disabled = false;
+
+    await loadAppointments();
+    showToast('Appointment confirmed!');
+    switchTab('appointments', document.querySelectorAll('.tab-btn')[0]);
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
+</body>
+</html>

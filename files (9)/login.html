@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Member Portal — Hillcrest Educational Consultants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0b1f3a; --navy-mid: #122847; --navy-light: #1a3560;
+      --gold: #c9a84c; --gold-light: #e2c47a; --text-muted: #8fa3bc; --white: #ffffff;
+    }
+    body {
+      font-family: 'EB Garamond', serif;
+      background: var(--navy); color: var(--white);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 10%, rgba(201,168,76,.07) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 85% 90%, rgba(26,53,96,.6) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(255,255,255,.015) 80px),
+        repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(255,255,255,.015) 80px);
+      pointer-events: none; z-index: 0;
+    }
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 22px 60px;
+      background: rgba(11,31,58,.75); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(201,168,76,.12);
+    }
+    .nav-wordmark {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600; font-size: 1.05rem; letter-spacing: .1em;
+      color: var(--white); text-decoration: none;
+    }
+    .nav-back {
+      font-size: .78rem; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--text-muted); text-decoration: none; transition: color .25s;
+    }
+    .nav-back:hover { color: var(--gold-light); }
+    .login-wrap {
+      position: relative; z-index: 1;
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      padding: 60px 24px;
+    }
+    .login-card {
+      width: 100%; max-width: 440px;
+      border: 1px solid rgba(201,168,76,.15);
+      background: rgba(255,255,255,.03);
+      backdrop-filter: blur(12px);
+      padding: 56px 48px;
+      animation: fadeUp .7s ease forwards;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .login-crest { text-align: center; margin-bottom: 28px; }
+    .login-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300; font-size: 2rem;
+      text-align: center; margin-bottom: 6px;
+    }
+    .login-sub {
+      font-size: .88rem; color: var(--text-muted);
+      text-align: center; margin-bottom: 40px; line-height: 1.5;
+    }
+    .field { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+    .field label {
+      font-size: .72rem; font-weight: 500; letter-spacing: .14em;
+      text-transform: uppercase; color: var(--text-muted);
+    }
+    .field input {
+      background: rgba(255,255,255,.04);
+      border: 1px solid rgba(255,255,255,.1);
+      padding: 13px 16px; color: var(--white);
+      font-family: 'EB Garamond', serif; font-size: 1rem;
+      outline: none; transition: border-color .25s, background .25s;
+    }
+    .field input:focus { border-color: var(--gold); background: rgba(201,168,76,.05); }
+    .field input::placeholder { color: rgba(255,255,255,.25); }
+    .error-msg {
+      display: none; color: #e07070; font-size: .85rem;
+      text-align: center; margin-bottom: 16px; margin-top: -8px;
+    }
+    .btn-login {
+      width: 100%; padding: 14px;
+      background: transparent; border: 1px solid var(--gold); color: var(--gold);
+      font-family: 'EB Garamond', serif; font-size: 1rem;
+      font-weight: 500; letter-spacing: .18em; text-transform: uppercase;
+      cursor: pointer; position: relative; overflow: hidden; transition: color .3s;
+    }
+    .btn-login::before {
+      content: ''; position: absolute; inset: 0;
+      background: var(--gold); transform: translateX(-101%); transition: transform .3s ease;
+    }
+    .btn-login:hover::before { transform: translateX(0); }
+    .btn-login:hover { color: var(--navy); }
+    .btn-login span { position: relative; z-index: 1; }
+    .login-rule {
+      width: 40px; height: 1px;
+      background: linear-gradient(90deg, transparent, var(--gold), transparent);
+      margin: 32px auto 0;
+    }
+    footer {
+      position: relative; z-index: 1;
+      text-align: center; padding: 28px;
+      font-size: .75rem; color: rgba(255,255,255,.2); letter-spacing: .06em;
+    }
+    footer span { color: var(--gold); opacity: .5; }
+  </style>
+</head>
+<body>
+<nav>
+  <a href="/" class="nav-wordmark">Hillcrest Educational Consultants</a>
+  <a href="/" class="nav-back">← Back to Home</a>
+</nav>
+
+<div class="login-wrap">
+  <div class="login-card">
+    <div class="login-crest">
+      <svg width="48" height="54" viewBox="0 0 64 72" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M32 3L5 14V32C5 49.12 16.84 64.86 32 69C47.16 64.86 59 49.12 59 32V14L32 3Z"
+              stroke="#c9a84c" stroke-width="1.2" fill="rgba(201,168,76,.05)"/>
+        <path d="M32 14V58" stroke="rgba(201,168,76,.3)" stroke-width=".8"/>
+        <path d="M18 36H46" stroke="rgba(201,168,76,.3)" stroke-width=".8"/>
+        <circle cx="32" cy="36" r="6" stroke="#c9a84c" stroke-width="1" fill="none"/>
+        <circle cx="32" cy="36" r="2" fill="#c9a84c" opacity=".6"/>
+      </svg>
+    </div>
+    <h1 class="login-title">Member Portal</h1>
+    <p class="login-sub">Sign in to manage your appointments</p>
+
+    <div class="field">
+      <label for="email">Email Address</label>
+      <input type="email" id="email" placeholder="yourname@email.com" />
+    </div>
+    <div class="field">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="••••••••" />
+    </div>
+    <p class="error-msg" id="errorMsg">Invalid email or password. Please try again.</p>
+    <button class="btn-login" onclick="handleLogin()"><span id="loginLabel">Sign In</span></button>
+    <div class="login-rule"></div>
+  </div>
+</div>
+
+<footer>
+  <p>© 2026 Hillcrest Educational Consultants &nbsp;<span>·</span>&nbsp; New Canaan, CT</p>
+</footer>
+
+<script>
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ozbmtqqdntltfnimyaev.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Ym10cXFkbnRsdGZuaW15YWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODUxMzgsImV4cCI6MjA5MjU2MTEzOH0.VGXjewx0PfUwSN0dUWkQZidVeFoeZ5M70C93ZUbcVZ8'
+  );
+
+  // Redirect if already logged in
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (session) window.location.href = '/portal';
+  })();
+
+  document.getElementById('password').addEventListener('keydown', e => {
+    if (e.key === 'Enter') handleLogin();
+  });
+
+  async function handleLogin() {
+    const email    = document.getElementById('email').value.trim();
+    const password = document.getElementById('password').value;
+    const label    = document.getElementById('loginLabel');
+    const err      = document.getElementById('errorMsg');
+
+    if (!email || !password) {
+      err.textContent = 'Please enter your email and password.';
+      err.style.display = 'block';
+      return;
+    }
+
+    err.style.display = 'none';
+    label.textContent = 'Signing in…';
+
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+
+    if (error) {
+      err.textContent = 'Invalid email or password. Please try again.';
+      err.style.display = 'block';
+      label.textContent = 'Sign In';
+    } else {
+      window.location.href = '/portal';
+    }
+  }
+</script>
+</body>
+</html>

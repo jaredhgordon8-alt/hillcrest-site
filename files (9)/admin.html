@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Hillcrest Educational Consultants</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,300;1,400&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --navy: #0b1f3a; --navy-mid: #122847; --navy-light: #1a3560;
+      --gold: #c9a84c; --gold-light: #e2c47a; --text-muted: #8fa3bc;
+      --white: #ffffff; --danger: #d96060;
+    }
+    body {
+      font-family: 'EB Garamond', serif;
+      background: var(--navy); color: var(--white);
+      min-height: 100vh; display: flex; flex-direction: column;
+    }
+    body::before {
+      content: ''; position: fixed; inset: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 15% 10%, rgba(201,168,76,.06) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 80% at 85% 90%, rgba(26,53,96,.5) 0%, transparent 60%),
+        repeating-linear-gradient(0deg, transparent, transparent 79px, rgba(255,255,255,.012) 80px),
+        repeating-linear-gradient(90deg, transparent, transparent 79px, rgba(255,255,255,.012) 80px);
+      pointer-events: none; z-index: 0;
+    }
+
+    /* NAV */
+    nav {
+      position: relative; z-index: 10;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 18px 60px;
+      background: rgba(11,31,58,.9); backdrop-filter: blur(18px);
+      border-bottom: 1px solid rgba(201,168,76,.12);
+    }
+    .nav-left { display: flex; align-items: center; gap: 16px; }
+    .nav-wordmark {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 600; font-size: 1rem; letter-spacing: .1em;
+      color: var(--white); text-decoration: none;
+    }
+    .nav-divider { width: 1px; height: 18px; background: rgba(255,255,255,.15); }
+    .nav-section {
+      font-size: .72rem; letter-spacing: .18em; text-transform: uppercase;
+      color: var(--gold); opacity: .9;
+    }
+    .nav-signout {
+      font-size: .75rem; letter-spacing: .12em; text-transform: uppercase;
+      color: var(--text-muted); background: none; border: none;
+      font-family: 'EB Garamond', serif; cursor: pointer; transition: color .25s;
+    }
+    .nav-signout:hover { color: var(--gold); }
+
+    /* LAYOUT */
+    .admin-body {
+      position: relative; z-index: 1; flex: 1;
+      max-width: 1200px; width: 100%; margin: 0 auto;
+      padding: 48px 40px 80px;
+    }
+    .page-title {
+      font-family: 'Cormorant Garamond', serif;
+      font-weight: 300; font-size: 2.2rem; margin-bottom: 6px;
+    }
+    .page-title em { font-style: italic; color: var(--gold-light); }
+    .page-sub { font-size: .9rem; color: var(--text-muted); margin-bottom: 44px; }
+
+    /* STATS ROW */
+    .stats-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 48px;
+    }
+    @media (max-width: 800px) { .stats-row { grid-template-columns: repeat(2, 1fr); } }
+    .stat-card {
+      padding: 22px 24px;
+      border: 1px solid rgba(201,168,76,.15);
+      background: rgba(255,255,255,.025);
+    }
+    .stat-value {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 2.4rem; font-weight: 300; color: var(--gold-light);
+      line-height: 1;
+    }
+    .stat-label {
+      font-size: .72rem; letter-spacing: .14em; text-transform: uppercase;
+      color: var(--text-muted); margin-top: 8px;
+    }
+
+    /* FILTERS */
+    .filters {
+      display: flex; align-items: center; gap: 12px;
+      margin-bottom: 24px; flex-wrap: wrap;
+    }
+    .filter-btn {
+      padding: 8px 20px; background: transparent;
+      border: 1px solid rgba(255,255,255,.1);
+      color: var(--text-muted); font-family: 'EB Garamond', serif;
+      font-size: .8rem; letter-spacing: .1em; text-transform: uppercase;
+      cursor: pointer; transition: border-color .2s, color .2s, background .2s;
+    }
+    .filter-btn.active { border-color: var(--gold); color: var(--gold); background: rgba(201,168,76,.06); }
+    .filter-btn:hover:not(.active) { border-color: rgba(255,255,255,.25); color: rgba(255,255,255,.7); }
+    .search-input {
+      margin-left: auto; padding: 8px 16px;
+      background: rgba(255,255,255,.04); border: 1px solid rgba(255,255,255,.1);
+      color: var(--white); font-family: 'EB Garamond', serif; font-size: .9rem;
+      outline: none; width: 220px; transition: border-color .25s;
+    }
+    .search-input:focus { border-color: var(--gold); }
+    .search-input::placeholder { color: rgba(255,255,255,.25); }
+
+    /* TABLE */
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%; border-collapse: collapse;
+    }
+    thead tr {
+      border-bottom: 1px solid rgba(201,168,76,.2);
+    }
+    th {
+      text-align: left; padding: 12px 16px;
+      font-size: .68rem; letter-spacing: .16em; text-transform: uppercase;
+      color: var(--gold); font-weight: 500; white-space: nowrap;
+    }
+    tbody tr {
+      border-bottom: 1px solid rgba(255,255,255,.05);
+      transition: background .2s;
+    }
+    tbody tr:hover { background: rgba(255,255,255,.025); }
+    td {
+      padding: 16px; font-size: .92rem; color: rgba(255,255,255,.85);
+      vertical-align: middle;
+    }
+    .td-name {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.05rem; font-weight: 600; color: var(--white);
+    }
+    .td-email { font-size: .8rem; color: var(--text-muted); margin-top: 2px; }
+    .advisor-pill {
+      display: inline-block; padding: 3px 12px;
+      border: 1px solid rgba(201,168,76,.3); color: var(--gold-light);
+      font-size: .78rem; letter-spacing: .06em;
+    }
+    .status-pill {
+      display: inline-block; padding: 3px 12px;
+      font-size: .72rem; letter-spacing: .08em; text-transform: uppercase;
+      border: 1px solid; white-space: nowrap;
+    }
+    .status-pill.upcoming { border-color: rgba(100,200,120,.4); color: #7dd9a0; }
+    .status-pill.past     { border-color: rgba(255,255,255,.12); color: var(--text-muted); }
+    .btn-cancel {
+      background: none; border: 1px solid rgba(217,96,96,.3);
+      color: rgba(217,96,96,.6); font-family: 'EB Garamond', serif;
+      font-size: .78rem; letter-spacing: .08em; text-transform: uppercase;
+      padding: 5px 14px; cursor: pointer; transition: border-color .2s, color .2s;
+    }
+    .btn-cancel:hover { border-color: var(--danger); color: var(--danger); }
+
+    .empty-state {
+      text-align: center; padding: 60px 20px;
+      color: var(--text-muted); font-size: 1rem;
+    }
+    .empty-state strong {
+      display: block; font-family: 'Cormorant Garamond', serif;
+      font-size: 1.4rem; font-weight: 300; color: var(--white); margin-bottom: 8px;
+    }
+    .loading-state { text-align: center; padding: 60px; color: var(--text-muted); }
+
+    /* MODAL */
+    .modal-overlay {
+      display: none; position: fixed; inset: 0;
+      background: rgba(0,0,0,.6); backdrop-filter: blur(4px);
+      z-index: 200; align-items: center; justify-content: center;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: var(--navy-mid); border: 1px solid rgba(201,168,76,.2);
+      padding: 40px; max-width: 420px; width: 90%;
+      animation: fadeUp .3s ease forwards;
+    }
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+    .modal h3 {
+      font-family: 'Cormorant Garamond', serif;
+      font-size: 1.5rem; font-weight: 300; margin-bottom: 12px;
+    }
+    .modal p { font-size: .9rem; color: var(--text-muted); line-height: 1.6; margin-bottom: 28px; }
+    .modal-actions { display: flex; gap: 12px; justify-content: flex-end; }
+    .btn-modal-cancel {
+      padding: 10px 24px; background: none;
+      border: 1px solid rgba(255,255,255,.15); color: var(--text-muted);
+      font-family: 'EB Garamond', serif; font-size: .88rem; cursor: pointer;
+      transition: border-color .2s, color .2s;
+    }
+    .btn-modal-cancel:hover { border-color: rgba(255,255,255,.3); color: var(--white); }
+    .btn-modal-confirm {
+      padding: 10px 24px; background: var(--danger);
+      border: none; color: var(--white);
+      font-family: 'EB Garamond', serif; font-size: .88rem;
+      cursor: pointer; transition: opacity .2s;
+    }
+    .btn-modal-confirm:hover { opacity: .85; }
+
+    .toast {
+      position: fixed; bottom: 32px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--navy-light); border: 1px solid var(--gold);
+      padding: 14px 32px; font-size: .9rem; color: var(--gold-light);
+      z-index: 999; transition: transform .4s, opacity .4s; opacity: 0; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+    footer {
+      position: relative; z-index: 1; text-align: center; padding: 28px;
+      font-size: .75rem; color: rgba(255,255,255,.2);
+      border-top: 1px solid rgba(255,255,255,.05);
+    }
+    footer span { color: var(--gold); opacity: .5; }
+  </style>
+</head>
+<body>
+
+<nav>
+  <div class="nav-left">
+    <a href="/" class="nav-wordmark">Hillcrest Educational Consultants</a>
+    <div class="nav-divider"></div>
+    <span class="nav-section">Admin Dashboard</span>
+  </div>
+  <button class="nav-signout" onclick="signOut()">Sign Out</button>
+</nav>
+
+<div class="admin-body">
+  <h1 class="page-title">Appointment <em>Management</em></h1>
+  <p class="page-sub" id="adminSubtitle">Loading…</p>
+
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-value" id="statTotal">—</div>
+      <div class="stat-label">Total Bookings</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statUpcoming">—</div>
+      <div class="stat-label">Upcoming</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statJared">—</div>
+      <div class="stat-label">With Jared</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-value" id="statOliver">—</div>
+      <div class="stat-label">With Oliver</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <button class="filter-btn active" onclick="setFilter('all', this)">All</button>
+    <button class="filter-btn" onclick="setFilter('upcoming', this)">Upcoming</button>
+    <button class="filter-btn" onclick="setFilter('past', this)">Past</button>
+    <button class="filter-btn" onclick="setFilter('Jared', this)">Jared</button>
+    <button class="filter-btn" onclick="setFilter('Oliver', this)">Oliver</button>
+    <input class="search-input" id="searchInput" placeholder="Search by name or email…"
+           oninput="renderTable()" />
+  </div>
+
+  <div class="table-wrap">
+    <div id="tableContainer"><div class="loading-state">Loading appointments…</div></div>
+  </div>
+</div>
+
+<!-- Confirm Cancel Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Cancel Appointment</h3>
+    <p id="modalBody">Are you sure you want to cancel this appointment?</p>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="closeModal()">Keep It</button>
+      <button class="btn-modal-confirm" onclick="executeCancel()">Yes, Cancel</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<footer>
+  <p>© 2026 Hillcrest Educational Consultants &nbsp;<span>·</span>&nbsp; New Canaan, CT</p>
+</footer>
+
+<script>
+  const ADMIN_EMAIL = 'jared@gordon.us';
+
+  const { createClient } = supabase;
+  const sb = createClient(
+    'https://ozbmtqqdntltfnimyaev.supabase.co',
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im96Ym10cXFkbnRsdGZuaW15YWV2Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzY5ODUxMzgsImV4cCI6MjA5MjU2MTEzOH0.VGXjewx0PfUwSN0dUWkQZidVeFoeZ5M70C93ZUbcVZ8'
+  );
+
+  let allAppointments = [];
+  let currentFilter   = 'all';
+  let cancelTargetId  = null;
+
+  // ── INIT ──
+  (async () => {
+    const { data: { session } } = await sb.auth.getSession();
+    if (!session) { window.location.href = '/login'; return; }
+
+    if (session.user.email !== ADMIN_EMAIL) {
+      document.body.innerHTML = `<div style="display:flex;align-items:center;justify-content:center;height:100vh;font-family:'EB Garamond',serif;color:#8fa3bc;font-size:1.1rem;">
+        Access restricted. <a href="/" style="color:#c9a84c;margin-left:8px;">Return home</a>
+      </div>`;
+      return;
+    }
+
+    document.getElementById('adminSubtitle').textContent =
+      'Signed in as ' + session.user.email + ' · ' +
+      new Date().toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+
+    await loadAll();
+  })();
+
+  async function signOut() {
+    await sb.auth.signOut();
+    window.location.href = '/login';
+  }
+
+  async function loadAll() {
+    const { data, error } = await sb
+      .from('appointments')
+      .select('*')
+      .order('datetime', { ascending: true });
+
+    if (error) {
+      document.getElementById('tableContainer').innerHTML =
+        `<div class="empty-state"><strong>Could not load appointments</strong>${error.message}</div>`;
+      return;
+    }
+
+    allAppointments = data || [];
+    updateStats();
+    renderTable();
+  }
+
+  function updateStats() {
+    const today = new Date(); today.setHours(0,0,0,0);
+    const upcoming = allAppointments.filter(a => new Date(a.datetime) >= today);
+    document.getElementById('statTotal').textContent    = allAppointments.length;
+    document.getElementById('statUpcoming').textContent = upcoming.length;
+    document.getElementById('statJared').textContent    = allAppointments.filter(a => a.advisor === 'Jared').length;
+    document.getElementById('statOliver').textContent   = allAppointments.filter(a => a.advisor === 'Oliver').length;
+  }
+
+  function setFilter(f, btn) {
+    currentFilter = f;
+    document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    renderTable();
+  }
+
+  function renderTable() {
+    const today  = new Date(); today.setHours(0,0,0,0);
+    const search = document.getElementById('searchInput').value.toLowerCase();
+
+    let rows = allAppointments.filter(a => {
+      const isPast = new Date(a.datetime) < today;
+      if (currentFilter === 'upcoming' && isPast)  return false;
+      if (currentFilter === 'past'     && !isPast) return false;
+      if (currentFilter === 'Jared'    && a.advisor !== 'Jared')  return false;
+      if (currentFilter === 'Oliver'   && a.advisor !== 'Oliver') return false;
+      if (search) {
+        const name  = (a.user_name  || '').toLowerCase();
+        const email = (a.user_email || '').toLowerCase();
+        if (!name.includes(search) && !email.includes(search)) return false;
+      }
+      return true;
+    });
+
+    const container = document.getElementById('tableContainer');
+
+    if (!rows.length) {
+      container.innerHTML = `<div class="empty-state"><strong>No appointments found</strong>Try adjusting your filters.</div>`;
+      return;
+    }
+
+    let html = `<table>
+      <thead><tr>
+        <th>Client</th>
+        <th>Advisor</th>
+        <th>Date</th>
+        <th>Time</th>
+        <th>Status</th>
+        <th></th>
+      </tr></thead><tbody>`;
+
+    rows.forEach(a => {
+      const d       = new Date(a.datetime);
+      const isPast  = d < today;
+      const dateStr = d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+      const timeStr = d.toLocaleTimeString('en-US', { hour:'numeric', minute:'2-digit', hour12:true });
+      const name    = a.user_name  || '—';
+      const email   = a.user_email || '—';
+
+      html += `<tr>
+        <td>
+          <div class="td-name">${name}</div>
+          <div class="td-email">${email}</div>
+        </td>
+        <td><span class="advisor-pill">${a.advisor}</span></td>
+        <td>${dateStr}</td>
+        <td>${timeStr}</td>
+        <td><span class="status-pill ${isPast ? 'past' : 'upcoming'}">${isPast ? 'Completed' : 'Upcoming'}</span></td>
+        <td>${!isPast ? `<button class="btn-cancel" data-id="${a.id}">Cancel</button>` : ''}</td>
+      </tr>`;
+    });
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }
+
+  // Single event listener set up once — no stacking
+  document.getElementById('tableContainer').addEventListener('click', e => {
+    const btn = e.target.closest('.btn-cancel');
+    if (!btn) return;
+    const id   = btn.dataset.id;
+    const row  = btn.closest('tr');
+    const name = row.querySelector('.td-name')?.textContent?.trim() || 'this client';
+    const date = row.cells[2]?.textContent?.trim() || '';
+    const time = row.cells[3]?.textContent?.trim() || '';
+    promptCancel(id, name, date, time);
+  });
+
+  // ── MODAL ──
+  function promptCancel(id, name, date, time) {
+    cancelTargetId = id;
+    document.getElementById('modalBody').textContent =
+      `Cancel ${name}'s appointment on ${date} at ${time}?`;
+    document.getElementById('modalOverlay').classList.add('open');
+  }
+
+  function closeModal() {
+    cancelTargetId = null;
+    document.getElementById('modalOverlay').classList.remove('open');
+  }
+
+  async function executeCancel() {
+    if (!cancelTargetId) return;
+    const idToDelete = cancelTargetId; // capture before closeModal nulls it
+    closeModal();
+    const { error } = await sb.from('appointments').delete().eq('id', idToDelete);
+    if (!error) {
+      await loadAll();
+      showToast('Appointment cancelled.');
+    } else {
+      showToast('Error cancelling appointment.');
+    }
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
+</body>
+</html>
